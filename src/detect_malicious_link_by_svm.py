@@ -6,12 +6,13 @@ from __future__ import print_function
 import os
 import random
 
+import tensorflow as tf
 import numpy as np
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 #from sklearn import svm
 from sklearn.cross_validation import train_test_split
-from sklearn.lda import LDA
+#from sklearn.lda import LDA
 
 import sys
 reload(sys)
@@ -59,16 +60,17 @@ data_frame = pd.DataFrame(csv_data)
 data_array = np.array(data_frame)
 #print(data_array)
 # random shuffle the data
-#random.shuffle(data_array)
+random.shuffle(data_array)
 
 
 # get the label of data
+# one-hot vector
 y = []
 for row in data_array:
 	if row[1] == 'bad':
-		y.append(0)
+		y.append([1, 0])
 	else:
-		y.append(1)
+		y.append([0, 1])
 #print("=======")
 #print(y)
 # all links coressponding to a label (whether malicious or clean)
@@ -78,23 +80,67 @@ corpus = [row[0] for row in data_array]
 # get a vector for each url but use our customized tokenizer
 vectorizer = TfidfVectorizer(tokenizer=getTokens)
 print("=======")
-print(vectorizer)
+#print(vectorizer)
 # get the X vector
 X = vectorizer.fit_transform(corpus)
 print("=======")
-print(X)
+# get the columns dimensions
+vec_dimensions = np.shape(X)[1]
 
-
-#  split into training data and test data
-X_train, X_test, y_train, y_test = train_test_split(X[42700:42800], y[42700:42800], test_size=0.2, random_state=42)
-
+# split into training data and test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.005)
 # svm training
 # clf = svm.SVC(kernel='linear')
 # clf.fit(X_train, y_train)
 # print the test score
 # print(clf.score(X_test, y_test))
-
 # LDA training
-clf = LDA()
-clf.fit(X_train.toarray(), y_train)
-print(clf.score(X_test.toarray(), y_test))
+#clf = LDA()
+#clf.fit(X_train.toarray(), y_train)
+#print(clf.score(X_test.toarray(), y_test))
+
+#train_data = [X_train, y_train]
+#test_data = [X_test, y_test]
+
+x_tf = tf.placeholder(tf.float32, [None, vec_dimensions])
+
+# Params
+W_tf = tf.Variable(tf.zeros([vec_dimensions, 2]))
+b_tf = tf.Variable(tf.zeros([2]))
+
+y_tf = tf.nn.softmax(tf.matmul(x_tf, W_tf) + b_tf)
+y_tf_ = tf.placeholder(tf.float32, [None, 2])
+
+# loss function
+cross_entropy = -tf.reduce_sum(y_tf_ * tf.log(y_tf))
+
+train_step = tf.train.GradientDescentOptimizer(0.01).minimize(cross_entropy)
+
+# init
+init = tf.initialize_all_variables()
+
+# create Session
+sess = tf.Session()
+sess.run(init)
+
+# train
+n = np.shape(X_train)[0]
+for i in range(1):
+	print("Iteration ", i+1)
+	#random.shuffle(train_data)
+	for k in xrange(n / 100):
+		print(k+1)
+		# batch size : 100
+		#batchesX = [X_train[k: k+100] for k in xrange(0, n, 100)]
+		#batchesY = [y_train[k: k+100] for k in xrange(0, n, 100)]
+		batch_xs, batch_ys = X_train[k: k+100].toarray(), y_train[k: k+100]
+		#print(batch_xs)
+		#print(batch_ys)
+		sess.run(train_step, feed_dict={x_tf: batch_xs, y_tf_: batch_ys})
+
+correct_prediction = tf.equal(tf.arg_max(y_tf, 1), tf.arg_max(y_tf_, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+
+print("Accuracy on Test-Data-Sets: ", sess.run(accuracy, feed_dict={x_tf: X_test.toarray(), y_tf_: y_test}))
+
+sess.close()
