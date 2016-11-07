@@ -125,7 +125,7 @@ sess.run(init)
 
 # train
 n = np.shape(X_train)[0]
-for i in range(1):
+for i in range(10):
 	print("Iteration ", i+1)
 	#random.shuffle(train_data)
 	for k in xrange(n / 100):
