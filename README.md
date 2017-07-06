@@ -1,2 +1,2 @@
-# SVM-on-Malicious-Link
-Using SVM (a popular machine learning method) to detect the malicious link.
+# LR-on-Malicious-Link
+Using LinearRegression (a popular machine learning method) to detect the malicious link.
